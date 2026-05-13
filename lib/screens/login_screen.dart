@@ -10,7 +10,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _mobileCtrl = TextEditingController(text: '9803367978');
+  final _mobileCtrl = TextEditingController(text: '9803000838');
   final _passCtrl = TextEditingController(text: 'Ndpc@2026');
   final _deviceCtrl = TextEditingController(text: 'AP31.240517.022');
   final _ipCtrl = TextEditingController(text: '103.164.158.193');
@@ -66,7 +66,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             const SectionLabel('Credentials'),
                             NeaTextField(
                               label: 'Mobile number / Login ID *',
-                              hint: '9803367978',
+                              hint: '9803300032',
                               controller: _mobileCtrl,
                               keyboardType: TextInputType.phone,
                             ),

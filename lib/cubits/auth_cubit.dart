@@ -28,6 +28,10 @@ class AuthCubit extends Cubit<AuthState> {
   final String baseUrl;
   final String basicAuthBase64;
 
+  /// Set to true to skip the real API and use a mock session.
+  /// Flip to false once testapp.namastepay.com:8811 is reachable again.
+  static const bool _mockMode = true;
+
   AuthCubit({
     this.baseUrl = 'https://testapp.namastepay.com:8811',
     this.basicAuthBase64 = 'bmRwY21vYmlsZUFwcC10ZXN0OldAdEFudE9uaW8=',
@@ -51,6 +55,29 @@ class AuthCubit extends Cubit<AuthState> {
     String providerIp = '0.0.0.0',
   }) async {
     emit(AuthLoading());
+
+    if (_mockMode) {
+      await Future.delayed(const Duration(milliseconds: 600));
+
+      if (mobileNumber.isEmpty || password.isEmpty) {
+        emit(AuthError('Mobile number and password are required.'));
+        return;
+      }
+
+      final mockSession = NamastePaySession(
+        accessToken: 'mock_access_token_dev_only',
+        refreshToken: 'mock_refresh_token_dev_only',
+        tokenType: 'Bearer',
+        expiresIn: 3600,
+        subscriberId: 'mock_subscriber_001',
+        loginTime: DateTime.now(),
+        mobileNumber: mobileNumber,
+      );
+      emit(AuthAuthenticated(mockSession));
+      return;
+    }
+
+    // ── Real API path (used when _mockMode = false) ────────────────────────
     try {
       final api = NamastePayApi(
         baseUrl: baseUrl,
@@ -71,6 +98,10 @@ class AuthCubit extends Cubit<AuthState> {
       emit(AuthAuthenticated(session));
     } on NamastePayException catch (e) {
       emit(AuthError(e.message));
+    } catch (e) {
+      // Catch-all for unexpected errors (timeout, etc.) not wrapped by the API layer.
+      emit(AuthError('Unexpected error: ${e.runtimeType}. '
+          'Check server connectivity.'));
     }
   }
 

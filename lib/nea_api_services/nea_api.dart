@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -22,9 +23,16 @@ class NeaApi {
 
   String get _ref => _uuid.v4();
 
+  // Token goes in the request body, not the Authorization header.
+  // Confirmed by curl testing: Khalti service endpoints read "token" from body.
   Map<String, String> get _headers => {
         'Content-Type': 'application/json',
-        'Authorization': 'Key $token',
+      };
+
+  /// Merges the token into every request body automatically.
+  Map<String, dynamic> _withToken(Map<String, dynamic> body) => {
+        'token': token,
+        ...body,
       };
 
   Future<Map<String, dynamic>> _post(
@@ -34,13 +42,21 @@ class NeaApi {
         : baseUrl;
     final uri = Uri.parse('$base$path');
 
-    debugPrint('POST $uri'); // debug — check this in your console
+    debugPrint('POST $uri');
+    debugPrint('Body: ${jsonEncode(_withToken(body))}');
 
-    final response = await http
-        .post(uri, headers: _headers, body: jsonEncode(body))
-        .timeout(const Duration(seconds: 30));
+    final http.Response response;
+    try {
+      response = await http
+          .post(uri, headers: _headers, body: jsonEncode(_withToken(body)))
+          .timeout(const Duration(seconds: 30));
+    } on TimeoutException {
+      throw const NeaApiException('Request timed out. Please try again.');
+    } catch (e) {
+      throw NeaApiException('Network error: ${e.runtimeType}');
+    }
 
-    debugPrint('Response ${response.statusCode}: ${response.body}'); // debug
+    debugPrint('Response ${response.statusCode}: ${response.body}');
 
     final Map<String, dynamic> data;
     try {
@@ -53,7 +69,16 @@ class NeaApi {
     }
 
     if (response.statusCode != 200 || data['status'] == false) {
-      final msg = data['message'] ??
+      // Try to surface the most descriptive error message available.
+      final details = data['details'];
+      String? detailMsg;
+      if (details is Map && details.isNotEmpty) {
+        detailMsg = details.values.first is List
+            ? (details.values.first as List).first.toString()
+            : details.values.first.toString();
+      }
+      final msg = detailMsg ??
+          data['message'] ??
           data['detail'] ??
           data['error'] ??
           'HTTP ${response.statusCode}';
@@ -97,8 +122,8 @@ class NeaApi {
     final data = await _post('/api/servicegroup/details/nea-v2/', {
       'reference': _ref,
       'request_no': consumerNo,
-      'confirm_type': 'E',
-      'confirm_id_type': 'CN',
+      'confirm_type': 'Energy Charge',
+      'confirm_id_type': 'Consumer Number',
     });
     return BillDetailV2.fromJson(data);
   }
@@ -137,7 +162,7 @@ class NeaApi {
   Future<PaymentResult> makePaymentV2({
     required int sessionId,
     required double amount,
-    List<String>? billIds, // null = advance payment (omit bill_id)
+    List<String>? billIds,
   }) async {
     final body = <String, dynamic>{
       'reference': _ref,
@@ -155,7 +180,7 @@ class NeaApi {
 
   Future<PaymentResult> makePaymentV1({
     required int sessionId,
-    required double amount, // must exclude service charge
+    required double amount,
   }) async {
     final data = await _post('/api/servicegroup/commit/nea/', {
       'reference': _ref,

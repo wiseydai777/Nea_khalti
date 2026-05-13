@@ -277,7 +277,6 @@ class _LookupScreenState extends State<LookupScreen> {
                 const SectionLabel('Consumer number'),
                 NeaTextField(
                     label: 'Consumer number *',
-                    hint: '1001595737',
                     controller: _consumerNoCtrl,
                     onChanged: cubit.setNewConsumerNo),
                 NeaTextField(

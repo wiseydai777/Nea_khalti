@@ -9,43 +9,28 @@ enum PaymentStep { counters, lookup, bills, charge, confirm, success }
 // ── State ─────────────────────────────────────────────────────────────────────
 
 class PaymentState {
-  // Config
   final String baseUrl;
   final String token;
-
-  // Navigation
   final PaymentStep step;
   final bool isV2;
-
-  // Step 1 — Counters
   final bool loadingCounters;
   final List<NeatCounter> counters;
   final NeatCounter? selectedCounter;
-
-  // Step 2 — Lookup
   final bool loadingConsumerId;
   final String scNo;
   final String consumerId;
   final String newConsumerNo;
   final String oldScNo;
   final String oldConsumerId;
-
-  // Step 3 — Bills
   final bool loadingBills;
   final BillDetailV1? billDetailV1;
   final BillDetailV2? billDetailV2;
   final List<SelectedBill> selectedBills;
-
-  // Step 4 — Charge
   final bool loadingCharge;
   final double payAmount;
   final double serviceCharge;
-
-  // Step 5 — Payment
   final bool loadingPayment;
   final PaymentResult? paymentResult;
-
-  // Error
   final String? error;
 
   const PaymentState({
@@ -74,7 +59,6 @@ class PaymentState {
     this.error,
   });
 
-  // Computed getters
   int? get sessionId =>
       isV2 ? billDetailV2?.sessionId : billDetailV1?.sessionId;
   String get consumerName => isV2
@@ -150,6 +134,8 @@ class PaymentState {
 class PaymentCubit extends Cubit<PaymentState> {
   PaymentCubit() : super(const PaymentState());
 
+  // Token is passed into NeaApi constructor — it injects it into every
+  // request body automatically via _withToken(). No need to pass per-call.
   NeaApi get _api => NeaApi(baseUrl: state.baseUrl, token: state.token);
 
   // ── Config ─────────────────────────────────────────────────────────────────
@@ -175,6 +161,9 @@ class PaymentCubit extends Cubit<PaymentState> {
       emit(state.copyWith(loadingCounters: false, counters: counters));
     } on NeaApiException catch (e) {
       emit(state.copyWith(loadingCounters: false, error: e.message));
+    } catch (e) {
+      emit(state.copyWith(
+          loadingCounters: false, error: 'Error: ${e.runtimeType}'));
     }
   }
 
@@ -205,6 +194,9 @@ class PaymentCubit extends Cubit<PaymentState> {
       emit(state.copyWith(loadingConsumerId: false, newConsumerNo: consumerNo));
     } on NeaApiException catch (e) {
       emit(state.copyWith(loadingConsumerId: false, error: e.message));
+    } catch (e) {
+      emit(state.copyWith(
+          loadingConsumerId: false, error: 'Error: ${e.runtimeType}'));
     }
   }
 
@@ -256,6 +248,9 @@ class PaymentCubit extends Cubit<PaymentState> {
       }
     } on NeaApiException catch (e) {
       emit(state.copyWith(loadingBills: false, error: e.message));
+    } catch (e) {
+      emit(state.copyWith(
+          loadingBills: false, error: 'Error: ${e.runtimeType}'));
     }
   }
 
@@ -290,6 +285,9 @@ class PaymentCubit extends Cubit<PaymentState> {
       emit(state.copyWith(loadingCharge: false, serviceCharge: result.charge));
     } on NeaApiException catch (e) {
       emit(state.copyWith(loadingCharge: false, error: e.message));
+    } catch (e) {
+      emit(state.copyWith(
+          loadingCharge: false, error: 'Error: ${e.runtimeType}'));
     }
   }
 
@@ -321,6 +319,9 @@ class PaymentCubit extends Cubit<PaymentState> {
       ));
     } on NeaApiException catch (e) {
       emit(state.copyWith(loadingPayment: false, error: e.message));
+    } catch (e) {
+      emit(state.copyWith(
+          loadingPayment: false, error: 'Error: ${e.runtimeType}'));
     }
   }
 }
